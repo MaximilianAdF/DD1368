@@ -1,0 +1,13 @@
+TRUNCATE TABLE "User" RESTART IDENTITY;
+
+INSERT INTO "User" (fullName, friends) VALUES 
+('Alice', ARRAY[]::INT[]),
+('Bob', ARRAY[]::INT[]),
+('Charlie', ARRAY[]::INT[]),
+('David', ARRAY[]::INT[]),
+('Eve', ARRAY[]::INT[]),
+('Lebron James', ARRAY[]::INT[]);
+
+UPDATE "User"
+SET friends = array_append(friends, 2) 
+WHERE userID = 1;
