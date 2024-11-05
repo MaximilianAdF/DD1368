@@ -1,0 +1,72 @@
+CREATE TYPE post.codec_type as ENUM ('H.264', 'AAC', 'VP9', 'MP3', 'AV1'); --Add encoding types that are allowed;
+CREATE TYPE users.payment_method_type as ENUM ('Klarna', 'Swish', 'Card', 'Bitcoin');
+CREATE TYPE post.tags_type as ENUM('Crypto', 'Studying', 'Question', 'Social');
+
+
+
+CREATE SCHEMA users;
+CREATE TABLE users.user_info (
+    user_id SERIAL PRIMARY KEY,
+    full_name VARCHAR(255),
+    friends INT[]  -- Array of User IDs for friends
+);
+CREATE TABLE users.subscriptions (
+    subscription_id SERIAL PRIMARY KEY,
+    date_of_payment TIMESTAMP,
+    user_id INT NOT NULL,
+    payment_method users.payment_method_type,
+    expiry_date TIMESTAMP
+);
+
+
+CREATE SCHEMA post;
+
+CREATE TABLE post.media (
+    post_id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    title VARCHAR(255),
+    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    place VARCHAR(255),
+    tags TEXT[],
+    post_type VARCHAR(10) CHECK (post_type IN ('image', 'text', 'video')),
+    image_url VARCHAR(255),
+    filter VARCHAR(255),
+    text_content TEXT,
+    video_url VARCHAR(255),
+    codec post.codec_type,
+    FOREIGN KEY (user_id) REFERENCES users.user_info(user_id)
+);
+
+
+
+CREATE SCHEMA engagement;
+
+CREATE TABLE engagement.likes (
+    post_id INT NOT NULL,
+    user_id INT NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, --check this
+    PRIMARY KEY (post_id, user_id),
+    FOREIGN KEY (user_id) REFERENCES users.user_info(user_id),
+    FOREIGN KEY (post_id) REFERENCES post.media(post_id)
+    
+);
+
+
+
+CREATE SCHEMA events;
+CREATE TABLE events.event_info (
+    event_id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    title VARCHAR(255),
+    place VARCHAR(255),
+    start_date TIMESTAMP,
+    end_date TIMESTAMP,
+    duration INTERVAL,
+    CHECK (start_date < end_date)
+);
+
+CREATE TABLE events.attendees (
+    event_id INT NOT NULL,
+    user_id INT NOT NULL,
+    PRIMARY KEY (event_id, user_id)
+);
