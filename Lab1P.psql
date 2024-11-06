@@ -1,0 +1,52 @@
+DROP TYPE IF EXISTS jobType CASCADE;
+DROP SCHEMA IF EXISTS Lab1p CASCADE;
+CREATE SCHEMA Lab1p;
+SET search_path TO Lab1p;
+
+
+
+CREATE TYPE jobType as ENUM('Doctor', 'Nurse');
+
+
+
+CREATE TABLE "Department" (
+    departmentName VARCHAR(255) PRIMARY KEY NOT NULL,
+    buildingNr INT NOT NULL,
+    employees INT[] NOT NULL
+);  
+
+
+CREATE TABLE "Employee" (
+    employeeID SERIAL PRIMARY KEY CHECK (employeeID > 0),
+    department VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    startDate DATE NOT NULL,
+    phoneNr INT NOT NULL,
+    job jobType NOT NULL,
+    mentor INT,
+    FOREIGN KEY (mentor) REFERENCES "Employee"(employeeID),
+    FOREIGN KEY (department) REFERENCES "Department"(departmentName) ON DELETE CASCADE
+);
+
+
+CREATE TABLE "Doctor"(
+    employeeID INT PRIMARY KEY NOT NULL,
+    specialization VARCHAR(255),
+    roomNr INT,
+    FOREIGN KEY (employeeID) REFERENCES "Employee"(employeeID) ON DELETE CASCADE
+);
+
+CREATE TABLE "Patient" (
+    patientID SERIAL PRIMARY KEY,
+    diagnosis VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    age INT NOT NULL
+);
+
+CREATE TABLE "Treating" (
+    DoctorID INT,
+    PatientID INT,
+    PRIMARY KEY (DoctorID, PatientID),
+    FOREIGN KEY (DoctorID) REFERENCES "Doctor"(employeeID),
+    FOREIGN KEY (PatientID) REFERENCES "Patient"(patientID)
+);

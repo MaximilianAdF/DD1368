@@ -2,30 +2,77 @@
 DROP TYPE IF EXISTS paymentMethodType CASCADE;
 DROP TYPE IF EXISTS tagsType CASCADE;
 
+
+-- Drop schema if it exists
+DROP SCHEMA IF EXISTS Lab1 CASCADE;
+CREATE SCHEMA Lab1;
+SET search_path TO Lab1;
+
+
 -- Create ENUM types
 CREATE TYPE paymentMethodType AS ENUM ('Klarna', 'Swish', 'Card', 'Bitcoin');
 CREATE TYPE tagsType AS ENUM ('Crypto', 'Studying', 'Question', 'Social');
 
 
-
--- Create User table
--- Create a function to update friends mutually
-CREATE OR REPLACE FUNCTION update_friends_mutually() RETURNS TRIGGER AS $$
+-- Function for mutual friendships
+CREATE OR REPLACE FUNCTION add_friend(userA INT, userB INT) RETURNS VOID AS $$
+DECLARE
+    userA_name VARCHAR(255);
+    userB_name VARCHAR(255);
 BEGIN
-    -- Add the new friend to the friend's friends list
-    UPDATE "User"
-    SET friends = array_append(friends, NEW.userID)
-    WHERE userID = ANY(NEW.friends);
+    -- Check if both users exist
+    IF NOT EXISTS (SELECT 1 FROM "User" WHERE userID = userA) THEN
+        RAISE EXCEPTION 'User A with ID % does not exist', userA;
+    END IF;
 
-    RETURN NEW;
+    IF NOT EXISTS (SELECT 1 FROM "User" WHERE userID = userB) THEN
+        RAISE EXCEPTION 'User B with ID % does not exist', userB;
+    END IF;
+
+    -- Retrieve the names of the users
+    SELECT fullName INTO userA_name FROM "User" WHERE userID = userA;
+    SELECT fullName INTO userB_name FROM "User" WHERE userID = userB;
+
+    -- Check if userB is already in userA's friends array
+    IF EXISTS (
+        SELECT 1 
+        FROM "User" 
+        WHERE userID = userA 
+          AND friends IS NOT NULL 
+          AND userB = ANY(friends)
+    ) THEN
+        RAISE NOTICE 'Users % and % are already friends.', userA_name, userB_name;
+        RETURN;
+    END IF;
+
+    -- Check if userA is already in userB's friends array
+    IF EXISTS (
+        SELECT 1 
+        FROM "User" 
+        WHERE userID = userB 
+          AND friends IS NOT NULL 
+          AND userA = ANY(friends)
+    ) THEN
+        RAISE NOTICE 'Users % and % are already friends.', userA_name, userB_name;
+        RETURN;
+    END IF;
+
+    -- Add userB to userA's friends array
+    UPDATE "User"
+    SET friends = COALESCE(ARRAY_APPEND(friends, userB), ARRAY[userB])
+    WHERE userID = userA;
+
+    -- Add userA to userB's friends array
+    UPDATE "User"
+    SET friends = COALESCE(ARRAY_APPEND(friends, userA), ARRAY[userA])
+    WHERE userID = userB;
+
+    -- Raise notice with full names
+    RAISE NOTICE 'Users % and % are now friends.', userA_name, userB_name;
 END;
 $$ LANGUAGE plpgsql;
 
--- Create a trigger to call the function after insert or update on the User table
-CREATE TRIGGER update_friends_trigger
-AFTER INSERT OR UPDATE OF friends ON "User"
-FOR EACH ROW
-EXECUTE FUNCTION update_friends_mutually();
+
 
 CREATE TABLE "User" (
     userID SERIAL PRIMARY KEY,
@@ -36,10 +83,10 @@ CREATE TABLE "User" (
 -- Create Subscription table
 CREATE TABLE "Subscription" (
     subscriptionID SERIAL PRIMARY KEY,
-    userID INT NOT NULL,
+    userID INT NOT NULL UNIQUE, -- One subscription per user
     dateOfPayment DATE NOT NULL,
-    paymentMethod paymentMethodType NOT NULL,  -- Use ENUM type for payment method
-    expiryDate DATE NOT NULL,
+    paymentMethod paymentMethodType NOT NULL,  -- Use type for payment method
+    expiryDate DATE GENERATED ALWAYS AS (dateOfPayment + INTERVAL '30 days') STORED,
     FOREIGN KEY (userID) REFERENCES "User"(userID) ON DELETE CASCADE
 );
 
@@ -50,7 +97,7 @@ CREATE TABLE "Post" (
     title VARCHAR(255),
     date DATE DEFAULT CURRENT_DATE NOT NULL,
     place VARCHAR(255),
-    tags tagsType[],  -- Use ENUM type for tags
+    tags tagsType[],  -- Use type for tags
     FOREIGN KEY (userID) REFERENCES "User"(userID) ON DELETE CASCADE
 );
 

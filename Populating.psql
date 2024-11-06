@@ -1,5 +1,7 @@
-TRUNCATE TABLE "User" RESTART IDENTITY;
+TRUNCATE TABLE "User" RESTART IDENTITY CASCADE;
 
+
+-- a
 INSERT INTO "User" (fullName, friends) VALUES 
 ('Alice', ARRAY[]::INT[]),
 ('Bob', ARRAY[]::INT[]),
@@ -8,6 +10,67 @@ INSERT INTO "User" (fullName, friends) VALUES
 ('Eve', ARRAY[]::INT[]),
 ('Lebron James', ARRAY[]::INT[]);
 
-UPDATE "User"
-SET friends = array_append(friends, 2) 
-WHERE userID = 1;
+
+-- b
+SELECT add_friend(1, 2); 
+SELECT add_friend(1, 3);
+SELECT add_friend(2, 4);
+SELECT add_friend(3, 4);
+SELECT add_friend(6, 1);
+
+
+-- c
+DO $$
+DECLARE
+    new_postID INT;
+BEGIN
+    -- Insert into Post and get postID for TextPost
+    INSERT INTO "Post" (userID, title, place, tags)
+    VALUES (1, 'Post Yes', 'Not null place', ARRAY[]::tagsType[])
+    RETURNING postID INTO new_postID;
+
+    INSERT INTO "TextPost" (postID, textContent)
+    VALUES (new_postID, 'This is a text post');
+
+    -- Insert into Post and get postID for ImagePost
+    INSERT INTO "Post" (userID, title, place, tags)
+    VALUES (2, 'Post No', 'Some place', ARRAY['Question', 'Social']::tagsType[])
+    RETURNING postID INTO new_postID;
+
+    INSERT INTO "ImagePost" (postID, imageUrl)
+    VALUES (new_postID, 'https://commandprompt.com/media/images/image_x2IjD3w.width-1200.png');
+
+    -- Insert into Post and get postID for VideoPost
+    INSERT INTO "Post" (userID, title, place, tags)
+    VALUES (3, 'Post Maybe', 'Cool place', ARRAY['Crypto', 'Social']::tagsType[])
+    RETURNING postID INTO new_postID;
+
+    INSERT INTO "VideoPost" (postID, videoUrl, codec)
+    VALUES (new_postID, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'H.264');
+
+END $$;
+
+
+-- d
+DO $$
+DECLARE
+    new_eventID INT;
+
+BEGIN
+    INSERT INTO "Event" (userID, title, place, startDate, endDate, duration)
+    VALUES (6, 'Lebron James meet & greet', 'nba', '2025-01-01', '2025-01-01', 1)
+    RETURNING eventID INTO new_eventID;
+
+    INSERT INTO "Attendee" (eventID, userID)
+    VALUES (new_eventID, 1);
+END $$;
+
+
+-- e
+INSERT INTO "Subscription" (userID, dateOfPayment, paymentMethod)
+VALUES (1, '2021-01-01', 'Swish'),
+       (2, '2021-02-01', 'Bitcoin'),
+       (3, '2021-01-01', 'Card'),
+       (4, '2021-05-07', 'Klarna'),
+       (5, '2021-01-01', 'Bitcoin'),
+       (6, '2021-01-01', 'Swish');
