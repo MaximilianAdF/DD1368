@@ -15,12 +15,21 @@ CREATE TABLE "Department" (
     employees INT[] NOT NULL
 );  
 
+CREATE TABLE "Treating" (
+    DoctorID INT,
+    departmentName VARCHAR(255),
+    startDate DATE NOT NULL,
+    PRIMARY KEY (DoctorID, departmentName ),
+    FOREIGN KEY (DoctorID) REFERENCES "Doctor"(employeeID),
+    FOREIGN KEY (departmentName ) REFERENCES "Department"(departmentName)
+);
+
+
 
 CREATE TABLE "Employee" (
     employeeID SERIAL PRIMARY KEY CHECK (employeeID > 0),
     department VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
-    startDate DATE NOT NULL,
     phoneNr INT NOT NULL,
     job jobType NOT NULL,
     mentor INT,
