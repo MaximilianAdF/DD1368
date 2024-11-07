@@ -12,7 +12,6 @@ CREATE TYPE jobType as ENUM('Doctor', 'Nurse');
 CREATE TABLE "Department" (
     departmentName VARCHAR(255) PRIMARY KEY NOT NULL,
     buildingNr INT NOT NULL,
-    employees INT[] NOT NULL
 );  
 
 CREATE TABLE "Employment" (
@@ -29,7 +28,6 @@ CREATE TABLE "Employee" (
     department VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     phoneNr INT NOT NULL,
-    job jobType NOT NULL,
     mentor INT,
     FOREIGN KEY (mentor) REFERENCES "Employee"(employeeID),
     FOREIGN KEY (department) REFERENCES "Department"(departmentName) ON DELETE CASCADE
@@ -39,6 +37,12 @@ CREATE TABLE "Doctor"(
     employeeID INT PRIMARY KEY NOT NULL,
     specialization VARCHAR(255),
     roomNr INT,
+    FOREIGN KEY (employeeID) REFERENCES "Employee"(employeeID) ON DELETE CASCADE
+);
+
+CREATE TABLE "Nurse"(
+    employeeID INT PRIMARY KEY NOT NULL,
+    degree VARCHAR(255),
     FOREIGN KEY (employeeID) REFERENCES "Employee"(employeeID) ON DELETE CASCADE
 );
 
