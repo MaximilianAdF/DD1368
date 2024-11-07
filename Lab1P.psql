@@ -25,7 +25,6 @@ CREATE TABLE "Employment" (
 
 CREATE TABLE "Employee" (
     employeeID SERIAL PRIMARY KEY CHECK (employeeID > 0),
-    department VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     phoneNr INT NOT NULL,
     mentor INT,
