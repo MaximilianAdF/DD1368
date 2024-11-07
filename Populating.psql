@@ -57,8 +57,8 @@ DECLARE
     new_eventID INT;
 
 BEGIN
-    INSERT INTO "Event" (userID, title, place, startDate, endDate, duration)
-    VALUES (6, 'Lebron James meet & greet', 'nba', '2025-01-01', '2025-01-01', 1)
+    INSERT INTO "Event" (userID, title, place, startDate, endDate)
+    VALUES (6, 'Lebron James meet & greet', 'nba', '2025-01-01', '2025-02-02')
     RETURNING eventID INTO new_eventID;
 
     INSERT INTO "Attendee" (eventID, userID)

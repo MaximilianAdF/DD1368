@@ -142,7 +142,7 @@ CREATE TABLE "Event" (
     place VARCHAR(255) NOT NULL,
     startDate DATE NOT NULL,
     endDate DATE NOT NULL CHECK (endDate >= startDate),
-    duration INT NOT NULL,
+    duration INT GENERATED ALWAYS AS (endDate - startDate) STORED, -- Duration in days
     FOREIGN KEY (userID) REFERENCES "User"(userID) ON DELETE CASCADE
 );
 
