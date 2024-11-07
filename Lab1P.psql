@@ -15,7 +15,7 @@ CREATE TABLE "Department" (
     employees INT[] NOT NULL
 );  
 
-CREATE TABLE "Treating" (
+CREATE TABLE "Employment" (
     DoctorID INT,
     departmentName VARCHAR(255),
     startDate DATE NOT NULL,
@@ -23,8 +23,6 @@ CREATE TABLE "Treating" (
     FOREIGN KEY (DoctorID) REFERENCES "Doctor"(employeeID),
     FOREIGN KEY (departmentName ) REFERENCES "Department"(departmentName)
 );
-
-
 
 CREATE TABLE "Employee" (
     employeeID SERIAL PRIMARY KEY CHECK (employeeID > 0),
@@ -36,7 +34,6 @@ CREATE TABLE "Employee" (
     FOREIGN KEY (mentor) REFERENCES "Employee"(employeeID),
     FOREIGN KEY (department) REFERENCES "Department"(departmentName) ON DELETE CASCADE
 );
-
 
 CREATE TABLE "Doctor"(
     employeeID INT PRIMARY KEY NOT NULL,
