@@ -80,15 +80,6 @@ CREATE TABLE "User" (
     friends INT[]  -- Array of User IDs for friends
 );
 
-CREATE TABLE "Freindship" (
-    userID1 INT,
-    userID2 INT,
-    PRIMARY KEY (userID1, userID2),
-    FOREIGN KEY (userID1) REFERENCES "User"(userID) ON DELETE CASCADE
-    FOREIGN KEY (userID2) REFERENCES "User"(userID) ON DELETE CASCADE
-);
-
-
 -- Create Subscription table
 CREATE TABLE "Subscription" (
     subscriptionID SERIAL PRIMARY KEY,
