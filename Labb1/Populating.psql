@@ -2,21 +2,22 @@ TRUNCATE TABLE "User" RESTART IDENTITY CASCADE;
 
 
 -- a
-INSERT INTO "User" (fullName, friends) VALUES 
-('Alice', ARRAY[]::INT[]),
-('Bob', ARRAY[]::INT[]),
-('Charlie', ARRAY[]::INT[]),
-('David', ARRAY[]::INT[]),
-('Eve', ARRAY[]::INT[]),
-('Lebron James', ARRAY[]::INT[]);
+INSERT INTO "User" (fullName) VALUES 
+('Alice'),
+('Bob'),
+('Charlie'),
+('David'),
+('Eve'),
+('Lebron James');
 
 
 -- b
-SELECT add_friend(1, 2); 
-SELECT add_friend(1, 3);
-SELECT add_friend(2, 4);
-SELECT add_friend(3, 4);
-SELECT add_friend(6, 1);
+INSERT INTO "Friend" (userID1, userID2) VALUES 
+(1, 2),
+(1, 3),
+(2, 4),
+(3, 4),
+(1, 6);
 
 
 -- c

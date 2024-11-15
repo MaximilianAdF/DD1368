@@ -14,71 +14,21 @@ CREATE TYPE paymentMethodType AS ENUM ('Klarna', 'Swish', 'Card', 'Bitcoin');
 CREATE TYPE tagsType AS ENUM ('Crypto', 'Studying', 'Question', 'Social');
 
 
--- Function for mutual friendships
-CREATE OR REPLACE FUNCTION add_friend(userA INT, userB INT) RETURNS VOID AS $$
-DECLARE
-    userA_name VARCHAR(255);
-    userB_name VARCHAR(255);
-BEGIN
-    -- Check if both users exist
-    IF NOT EXISTS (SELECT 1 FROM "User" WHERE userID = userA) THEN
-        RAISE EXCEPTION 'User A with ID % does not exist', userA;
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM "User" WHERE userID = userB) THEN
-        RAISE EXCEPTION 'User B with ID % does not exist', userB;
-    END IF;
-
-    -- Retrieve the names of the users
-    SELECT fullName INTO userA_name FROM "User" WHERE userID = userA;
-    SELECT fullName INTO userB_name FROM "User" WHERE userID = userB;
-
-    -- Check if userB is already in userA's friends array
-    IF EXISTS (
-        SELECT 1 
-        FROM "User" 
-        WHERE userID = userA 
-          AND friends IS NOT NULL 
-          AND userB = ANY(friends)
-    ) THEN
-        RAISE NOTICE 'Users % and % are already friends.', userA_name, userB_name;
-        RETURN;
-    END IF;
-
-    -- Check if userA is already in userB's friends array
-    IF EXISTS (
-        SELECT 1 
-        FROM "User" 
-        WHERE userID = userB 
-          AND friends IS NOT NULL 
-          AND userA = ANY(friends)
-    ) THEN
-        RAISE NOTICE 'Users % and % are already friends.', userA_name, userB_name;
-        RETURN;
-    END IF;
-
-    -- Add userB to userA's friends array
-    UPDATE "User"
-    SET friends = COALESCE(ARRAY_APPEND(friends, userB), ARRAY[userB])
-    WHERE userID = userA;
-
-    -- Add userA to userB's friends array
-    UPDATE "User"
-    SET friends = COALESCE(ARRAY_APPEND(friends, userA), ARRAY[userA])
-    WHERE userID = userB;
-
-    -- Raise notice with full names
-    RAISE NOTICE 'Users % and % are now friends.', userA_name, userB_name;
-END;
-$$ LANGUAGE plpgsql;
-
-
-
 CREATE TABLE "User" (
     userID SERIAL PRIMARY KEY,
-    fullName VARCHAR(255) NOT NULL,
-    friends INT[]  -- Array of User IDs for friends
+    fullName VARCHAR(255) NOT NULL
 );
+
+-- Table for friendships
+CREATE TABLE "Friend" (
+    userID1 INT NOT NULL,
+    userID2 INT NOT NULL,
+    FOREIGN KEY (userID1) REFERENCES "User"(userID) ON DELETE CASCADE,
+    FOREIGN KEY (userID2) REFERENCES "User"(userID) ON DELETE CASCADE,
+    PRIMARY KEY (userID1, userID2),
+    CHECK (userID1 < userID2) -- Enforces canonical order to not have duplicates (userID1 userID2) and (userID2 userID1)
+);
+
 
 -- Create Subscription table
 CREATE TABLE "Subscription" (
