@@ -36,7 +36,6 @@ CREATE TABLE "Subscription" (
     userID INT NOT NULL UNIQUE, -- One subscription per user
     dateOfPayment DATE NOT NULL,
     paymentMethod paymentMethodType NOT NULL,  -- Use type for payment method
-    expiryDate DATE GENERATED ALWAYS AS (dateOfPayment + INTERVAL '30 days') STORED,
     FOREIGN KEY (userID) REFERENCES "User"(userID) ON DELETE CASCADE
 );
 
@@ -92,7 +91,6 @@ CREATE TABLE "Event" (
     place VARCHAR(255) NOT NULL,
     startDate DATE NOT NULL,
     endDate DATE NOT NULL CHECK (endDate >= startDate),
-    duration INT GENERATED ALWAYS AS (endDate - startDate) STORED, -- Duration in days
     FOREIGN KEY (userID) REFERENCES "User"(userID) ON DELETE CASCADE
 );
 
