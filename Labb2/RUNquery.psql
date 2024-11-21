@@ -1,33 +1,32 @@
-WITH RECURSIVE FriendChain AS (
-    -- Base case: Start with Anas
+WITH Postdata AS (
     SELECT 
-        f.UserID AS CurrentUserID,
-        u.name AS Currentname,
-        f.FriendID AS FriendID
+        u.name AS name,
+        u.UserID as UserID,
+        p.PostID AS PostID 
     FROM 
-        Friend f
+        Users u
     JOIN 
-        Users u ON f.UserID = u.UserID
+        Post p ON u.UserID = p.UserID
     WHERE 
-        u.UserID = 20 -- Starting with Anas
-    
-    UNION ALL
-    
-    -- Recursive case: Find the next friend in the chain
-    SELECT 
-        f.FriendID AS CurrentUserID,
-        u.name AS Currentname,
-        f.FriendID AS FriendID
-    FROM 
-        FriendChain fc
+        DATE_PART('month', p.date) = 3 -- Filter for posts in March
+),
+LikeCounts AS (
+    SELECT
+        pd.name,
+        pd.UserID,
+        COUNT(l.PostID) AS like_count
+    FROM
+        Postdata pd
     JOIN 
-        Friend f ON fc.CurrentUserID = f.UserID
-    JOIN 
-        Users u ON f.FriendID = u.UserID
+        Likes l ON pd.PostID = l.PostID
+    GROUP BY
+        pd.UserID, pd.name
 )
-SELECT 
-    Currentname as name,
-    CurrentUserID as user_id,
-    FriendID as friend_id
-FROM 
-    FriendChain;
+
+SELECT
+    name,
+    CASE WHEN like_count >= 50 THEN TRUE ELSE FALSE END AS received_likes
+FROM
+    LikeCounts
+ORDER BY
+    name;

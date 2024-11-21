@@ -1,30 +1,47 @@
 -- Uppgift 1
-SELECT p.Title, STRING_AGG(pt.Tag, ', '  ORDER BY pt.Tag) AS Tags
-FROM Post p
-JOIN PostTag pt ON p.PostID = pt.PostID
-GROUP BY p.Title
-ORDER BY p.Title ASC;
+SELECT 
+    p.Title, 
+    STRING_AGG(pt.Tag, ', '  ORDER BY pt.Tag) AS Tags -- concatenate all values of the 'Tag' column from the 'pt' table into a single string, separated by ', '. The tags are ordered alphabetically by the 'Tag' column before concatenation.
+FROM 
+    Post p
+JOIN 
+    PostTag pt ON p.PostID = pt.PostID
+GROUP BY 
+    p.Title
+ORDER BY 
+    p.Title ASC;
+
 
 
 -- Uppgift 2
-SELECT PostID, Title, Rank
-FROM (
-    SELECT p.PostID, p.Title, 
-           RANK() OVER (ORDER BY COUNT(l.PostID) DESC) AS Rank
-    FROM Post p
-    JOIN Likes l ON p.PostID = l.PostID
-    JOIN PostTag pt ON p.PostID = pt.PostID
-    WHERE pt.Tag = '#leadership'
-    GROUP BY p.PostID, p.Title
-) AS RankedPosts
+WITH TaggedPosts AS (
+    SELECT 
+        p.PostID,
+        p.Title, 
+        RANK() OVER (ORDER BY COUNT(l.PostID) DESC) AS Rank -- Rank the posts based on the number of likes they have received
+    FROM 
+        Post p
+    JOIN 
+        Likes l ON p.PostID = l.PostID
+    JOIN 
+        PostTag pt ON p.PostID = pt.PostID
+    WHERE 
+        pt.Tag = '#leadership' -- Select for posts with the '#leadership' tag
+    GROUP BY 
+        p.PostID, 
+        p.Title
+)
+SELECT 
+    tp.PostID, 
+    tp.Title, 
+    tp.Rank
+FROM 
+    TaggedPosts tp
 WHERE Rank <= 5;
 
 
+
 -- Uppgift 3
-DROP TABLE financial_report;
-
-
-CREATE TEMPORARY TABLE financial_report AS
 WITH SubscriptionWeek AS ( -- the week a user subbed
     SELECT 
         s.UserID,
@@ -47,7 +64,7 @@ FirstTimeSubscriptions AS (
     LEFT JOIN SubscriptionWeek prev_s 
         ON s.UserID = prev_s.UserID
         AND prev_s.SubscriptionDate < s.SubscriptionDate
-    WHERE prev_s.UserID IS NULL  -- No previous subscription means first-time
+    WHERE prev_s.UserID IS NULL -- No previous subscription means first-time
 ),
 RenewedSubscriptions AS (
     SELECT 
@@ -60,26 +77,23 @@ RenewedSubscriptions AS (
 ),
 WeeklyActivity AS (
     SELECT 
-        p.UserID,
         p.PostWeek,
         COUNT(p.PostID) AS ActivityCount
     FROM PostActivity p
-    GROUP BY p.UserID, p.PostWeek
+    GROUP BY p.PostWeek
 )
-
-
 
 SELECT
     ws.Week,
     COUNT(DISTINCT fs.UserID) AS new_customers,  -- Count distinct users for first-time subscriptions
     COUNT(DISTINCT rs.UserID) AS kept_customers,   -- Count distinct users for renewals
-    COALESCE(SUM(wa.ActivityCount), 0) AS activity  -- Sum of posts created by users each week
+    COALESCE(wa.ActivityCount, 0) AS activity  -- Sum of posts created by users each week
 FROM 
-    (SELECT generate_series(1, 30) AS Week) ws  -- Generate week numbers from 1 to 30
+    (SELECT generate_series(1, 30) AS Week) ws  -- Generate empty table with column week numbers from 1 to 30
 LEFT JOIN FirstTimeSubscriptions fs ON fs.Week = ws.Week
 LEFT JOIN RenewedSubscriptions rs ON rs.Week = ws.Week
 LEFT JOIN WeeklyActivity wa ON wa.PostWeek = ws.Week
-GROUP BY ws.Week
+GROUP BY ws.Week, wa.ActivityCount
 ORDER BY ws.Week;
 
 
@@ -104,4 +118,82 @@ FROM RegData r
 LEFT JOIN Friend f ON f.UserID = r.UserID
 ORDER BY r.name;
 
+
 -- Uppgift 5
+
+
+WITH RECURSIVE friend_chain AS (
+    SELECT 
+        f1.UserID AS UserID,           -- The initial user's ID
+        u1.name AS user_name,          -- The initial user's name
+        f1.FriendID AS FriendID,       -- The friend's ID
+        u2.name AS friend_name         -- The friend's name
+    FROM 
+        Friend f1                      -- From the Friend table
+    JOIN 
+        users u1 ON f1.UserID = u1.UserID  -- Join to get the initial user's name
+    JOIN 
+        users u2 ON f1.FriendID = u2.UserID -- Join to get the friend's name
+    WHERE 
+        f1.UserID = 20                 -- Start with the user whose ID is 20
+
+    UNION
+
+    SELECT 
+        fc.FriendID AS UserID,         -- The friend's ID becomes the new user ID
+        fc.friend_name AS user_name,   -- The friend's name becomes the new user name
+        f2.FriendID AS FriendID,       -- The friend's friend's ID
+        u2.name AS friend_name         -- The friend's friend's name
+    FROM 
+        friend_chain fc                -- From the previously defined friend_chain
+    LEFT JOIN 
+        Friend f2 ON fc.FriendID = f2.UserID -- Join to get the friend's friends
+    LEFT JOIN 
+        users u2 ON f2.FriendID = u2.UserID  -- Join to get the friend's friend's name
+    WHERE 
+        fc.FriendID IS NOT NULL        -- Ensure no NULL rows are propagated
+)
+
+-- Final selection: Retrieve the user names, user IDs, and friend IDs from the friend_chain CTE
+SELECT 
+    user_name as name,                 -- The name of the user
+    UserID as user_id,                 -- The ID of the user
+    FriendID as friend_id              -- The ID of the friend
+FROM 
+    friend_chain;
+
+
+
+-- P+
+WITH Postdata AS (
+    SELECT 
+        u.name AS name,
+        u.UserID as UserID,
+        p.PostID AS PostID 
+    FROM 
+        Users u
+    JOIN 
+        Post p ON u.UserID = p.UserID
+    WHERE 
+        DATE_PART('month', p.date) = 3 -- Filter for posts in March
+),
+LikeCounts AS (
+    SELECT
+        pd.name,
+        pd.UserID,
+        COUNT(l.PostID) AS like_count
+    FROM
+        Postdata pd
+    JOIN 
+        Likes l ON pd.PostID = l.PostID
+    GROUP BY
+        pd.name ,pd.UserID
+)
+
+SELECT
+    name,
+    CASE WHEN like_count >= 50 THEN TRUE ELSE FALSE END AS received_likes
+FROM
+    LikeCounts
+ORDER BY
+    name;
