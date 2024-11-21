@@ -1,0 +1,107 @@
+-- Uppgift 1
+SELECT p.Title, STRING_AGG(pt.Tag, ', '  ORDER BY pt.Tag) AS Tags
+FROM Post p
+JOIN PostTag pt ON p.PostID = pt.PostID
+GROUP BY p.Title
+ORDER BY p.Title ASC;
+
+
+-- Uppgift 2
+SELECT PostID, Title, Rank
+FROM (
+    SELECT p.PostID, p.Title, 
+           RANK() OVER (ORDER BY COUNT(l.PostID) DESC) AS Rank
+    FROM Post p
+    JOIN Likes l ON p.PostID = l.PostID
+    JOIN PostTag pt ON p.PostID = pt.PostID
+    WHERE pt.Tag = '#leadership'
+    GROUP BY p.PostID, p.Title
+) AS RankedPosts
+WHERE Rank <= 5;
+
+
+-- Uppgift 3
+DROP TABLE financial_report;
+
+
+CREATE TEMPORARY TABLE financial_report AS
+WITH SubscriptionWeek AS ( -- the week a user subbed
+    SELECT 
+        s.UserID,
+        s.date AS SubscriptionDate,
+        date_part('week', s.date) AS Week
+    FROM Subscription s
+),
+PostActivity AS ( --the week a post got posted
+    SELECT 
+        p.UserID,
+        p.PostID,
+        date_part('week', p.date) AS PostWeek
+    FROM Post p
+),
+FirstTimeSubscriptions AS (
+    SELECT 
+        s.UserID,
+        s.Week
+    FROM SubscriptionWeek s
+    LEFT JOIN SubscriptionWeek prev_s 
+        ON s.UserID = prev_s.UserID
+        AND prev_s.SubscriptionDate < s.SubscriptionDate
+    WHERE prev_s.UserID IS NULL  -- No previous subscription means first-time
+),
+RenewedSubscriptions AS (
+    SELECT 
+        s.UserID,
+        s.Week
+    FROM SubscriptionWeek s
+    JOIN SubscriptionWeek prev_s
+        ON s.UserID = prev_s.UserID
+        AND prev_s.SubscriptionDate < s.SubscriptionDate
+),
+WeeklyActivity AS (
+    SELECT 
+        p.UserID,
+        p.PostWeek,
+        COUNT(p.PostID) AS ActivityCount
+    FROM PostActivity p
+    GROUP BY p.UserID, p.PostWeek
+)
+
+
+
+SELECT
+    ws.Week,
+    COUNT(DISTINCT fs.UserID) AS new_customers,  -- Count distinct users for first-time subscriptions
+    COUNT(DISTINCT rs.UserID) AS kept_customers,   -- Count distinct users for renewals
+    COALESCE(SUM(wa.ActivityCount), 0) AS activity  -- Sum of posts created by users each week
+FROM 
+    (SELECT generate_series(1, 30) AS Week) ws  -- Generate week numbers from 1 to 30
+LEFT JOIN FirstTimeSubscriptions fs ON fs.Week = ws.Week
+LEFT JOIN RenewedSubscriptions rs ON rs.Week = ws.Week
+LEFT JOIN WeeklyActivity wa ON wa.PostWeek = ws.Week
+GROUP BY ws.Week
+ORDER BY ws.Week;
+
+
+-- Uppgift 4
+WITH RegData AS (
+    SELECT 
+        u.name,
+        u.UserID,
+        s.date AS registration_date
+    FROM Subscription s
+    JOIN Users u ON u.UserID = s.UserID
+    WHERE s.date < '2024-02-01'
+)
+SELECT DISTINCT
+    r.name,
+    CASE
+        WHEN f.FriendID IS NOT NULL THEN TRUE
+        ELSE FALSE
+    END AS has_friend,
+    r.registration_date
+FROM RegData r
+LEFT JOIN Friend f ON f.UserID = r.UserID
+ORDER BY r.name;
+
+-- Uppgift 5
