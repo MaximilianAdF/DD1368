@@ -1,32 +1,75 @@
-WITH Postdata AS (
+WITH SubscriptionWeek AS ( -- the week a user subbed
     SELECT 
-        u.name AS name,
-        u.UserID as UserID,
-        p.PostID AS PostID 
-    FROM 
-        Users u
-    JOIN 
-        Post p ON u.UserID = p.UserID
-    WHERE 
-        DATE_PART('month', p.date) = 3 -- Filter for posts in March
+        s.UserID,
+        s.date AS SubscriptionDate,
+        date_part('week', s.date) AS Week
+    FROM Subscription s
 ),
-LikeCounts AS (
-    SELECT
-        pd.name,
-        pd.UserID,
-        COUNT(l.PostID) AS like_count
-    FROM
-        Postdata pd
-    JOIN 
-        Likes l ON pd.PostID = l.PostID
-    GROUP BY
-        pd.UserID, pd.name
+PostActivity AS ( --the week a post got posted
+    SELECT 
+        p.UserID,
+        p.PostID,
+        date_part('week', p.date) AS PostWeek
+    FROM Post p
+),
+FirstTimeSubscriptions AS (
+    SELECT 
+        s.UserID,
+        s.Week
+    FROM SubscriptionWeek s
+    LEFT JOIN SubscriptionWeek prev_s 
+        ON s.UserID = prev_s.UserID
+        AND prev_s.SubscriptionDate < s.SubscriptionDate
+    WHERE prev_s.UserID IS NULL -- No previous subscription means first-time
+),
+RenewedSubscriptions AS (
+    SELECT 
+        s.UserID,
+        s.Week
+    FROM SubscriptionWeek s
+    JOIN SubscriptionWeek prev_s
+        ON s.UserID = prev_s.UserID
+        AND prev_s.SubscriptionDate < s.SubscriptionDate
+),
+WeeklyActivity AS (
+    SELECT 
+        p.PostWeek,
+        COUNT(p.PostID) AS ActivityCount
+    FROM PostActivity p
+    GROUP BY p.PostWeek
 )
 
 SELECT
-    name,
-    CASE WHEN like_count >= 50 THEN TRUE ELSE FALSE END AS received_likes
-FROM
-    LikeCounts
-ORDER BY
-    name;
+    ws.Week,
+    COUNT(DISTINCT fs.UserID) AS new_customers,  -- Count distinct users for first-time subscriptions
+    COUNT(DISTINCT rs.UserID) AS kept_customers,   -- Count distinct users for renewals
+    COALESCE(wa.ActivityCount, 0) AS activity  -- Sum of posts created by users each week
+FROM 
+    (SELECT generate_series(1, 30) AS Week) ws  -- Generate empty table with column week numbers from 1 to 30
+LEFT JOIN FirstTimeSubscriptions fs ON fs.Week = ws.Week
+LEFT JOIN RenewedSubscriptions rs ON rs.Week = ws.Week
+LEFT JOIN WeeklyActivity wa ON wa.PostWeek = ws.Week
+GROUP BY ws.Week, wa.ActivityCount
+ORDER BY ws.Week;
+
+
+-- Uppgift 4
+WITH RegData AS (
+    SELECT 
+        u.name,
+        u.UserID,
+        s.date AS registration_date
+    FROM Subscription s
+    JOIN Users u ON u.UserID = s.UserID
+    WHERE s.date < '2024-02-01'
+)
+SELECT DISTINCT
+    r.name,
+    CASE
+        WHEN f.FriendID IS NOT NULL THEN TRUE
+        ELSE FALSE
+    END AS has_friend,
+    r.registration_date
+FROM RegData r
+LEFT JOIN Friend f ON f.UserID = r.UserID
+ORDER BY r.name;
