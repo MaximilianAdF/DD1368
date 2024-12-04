@@ -1,0 +1,216 @@
+
+-- Uppgift 1
+WITH BorderCounts AS (
+    SELECT Country1 AS Country, COUNT(DISTINCT Country2) AS BorderCount
+    FROM borders
+    GROUP BY Country1
+    UNION ALL
+    SELECT Country2 AS Country, COUNT(DISTINCT Country1) AS BorderCount
+    FROM borders
+    GROUP BY Country2
+),
+AggregatedCounts AS (
+    SELECT Country, SUM(BorderCount) AS TotalBorders
+    FROM BorderCounts
+    GROUP BY Country
+),
+RankedCountries AS (
+    SELECT Country, TotalBorders, RANK() OVER (ORDER BY TotalBorders ASC) AS Rank
+    FROM AggregatedCounts
+)
+SELECT c.Name AS name, RankedCountries.TotalBorders as num
+FROM RankedCountries
+INNER JOIN Country c ON RankedCountries.Country = c.Code
+WHERE RankedCountries.Rank = 1;
+
+
+-- Uppgift 2
+SELECT 
+    s.Language,
+    FLOOR(SUM(c.Population * (COALESCE(s.Percentage, 0) / 100))) AS TotalSpeakers
+FROM 
+    Spoken s
+JOIN 
+    Country c ON s.Country = c.Code
+GROUP BY 
+    s.Language
+ORDER BY 
+    TotalSpeakers DESC;
+
+
+-- Uppgift 3
+WITH GDP AS (
+    SELECT 
+    c.Code AS CountryCode,
+    c.Name AS CountryName, 
+    COALESCE(e.GDP, 0) AS GDP
+    FROM 
+        Economy e
+    JOIN 
+        Country c ON e.Country = c.Code
+    ORDER BY 
+        GDP DESC
+),
+BorderingCountries AS (
+    SELECT 
+        c1.Code AS CountryCode1,
+        c2.Code AS CountryCode2
+    FROM 
+        Country c1
+    JOIN 
+        borders b ON c1.Code = b.Country1
+    JOIN 
+        Country c2 ON b.Country2 = c2.Code
+)
+
+SELECT 
+    g1.CountryCode AS Country1,
+    g1.GDP AS GDP1,
+    g2.CountryCode AS Country2,
+    g2.GDP AS GDP2,
+    CASE 
+        WHEN g2.GDP > 0 AND g1.GDP > 0 THEN ROUND(GREATEST(g1.GDP / g2.GDP, g2.GDP / g1.GDP))
+        ELSE 0
+    END AS GDP_Ratio
+FROM 
+    GDP g1
+JOIN 
+    BorderingCountries bc ON g1.CountryCode = bc.CountryCode1
+JOIN 
+    GDP g2 ON bc.CountryCode2 = g2.CountryCode
+ORDER BY 
+    GDP_Ratio DESC
+
+
+
+-- Uppgift P+ 1
+WITH RECURSIVE BorderCrossing AS (
+    -- Base case: Starting from Sweden
+    SELECT
+        0 AS Steps,
+        b.Country1 AS DestinationCountry,
+        ARRAY[]::VARCHAR[] AS Path
+    FROM
+        borders b
+    WHERE
+        b.Country1 = 'S'
+    
+    UNION ALL
+
+    -- Recursive case: Continue crossing borders
+    SELECT
+        bc.Steps + 1 AS Steps,
+        CASE 
+            WHEN b.Country1 = bc.DestinationCountry THEN b.Country2
+            ELSE b.Country1
+        END AS DestinationCountry,
+        Path || (CASE 
+                    WHEN b.Country1 = bc.DestinationCountry THEN b.Country2
+                    ELSE b.Country1
+                 END)::VARCHAR AS Path
+    FROM
+        BorderCrossing bc
+    JOIN
+        borders b ON bc.DestinationCountry = b.Country1 OR bc.DestinationCountry = b.Country2
+    WHERE
+        Steps < 5
+        AND
+        (CASE 
+            WHEN b.Country1 = bc.DestinationCountry THEN b.Country2
+            ELSE b.Country1
+        END) != ALL(Path) -- Avoid revisiting countries already in the path
+)
+
+-- Select only the shortest paths
+SELECT DISTINCT
+    bc.DestinationCountry as code, 
+    c.Name AS name,
+    bc.Steps as min
+FROM 
+    BorderCrossing bc
+JOIN 
+    Country c ON bc.DestinationCountry = c.Code
+WHERE 
+    bc.Steps <= 5
+    AND NOT EXISTS (  -- Ensure no longer path exists for the same destination
+        SELECT 1
+        FROM BorderCrossing bc2
+        WHERE bc2.DestinationCountry = bc.DestinationCountry
+        AND bc2.Steps < bc.Steps
+    )
+    AND bc.DestinationCountry != 'S'
+ORDER BY 
+    bc.Steps, bc.DestinationCountry;
+
+
+
+-- Uppgift P+ 2
+WITH RECURSIVE RiverBranches AS (
+    -- Base case: Start from the specified rivers
+    SELECT
+        1 AS BranchLevel,
+        r.Name AS RiverName,
+        r.Length AS TotalLength,
+        ARRAY[r.Name]::VARCHAR[] AS Path,
+        r.Name AS RootRiver
+    FROM
+        River r
+    WHERE
+        r.Name IN ('Nile', 'Amazonas', 'Yangtze', 'Rhein', 'Donau', 'Mississippi')
+    
+    UNION ALL
+    
+    -- Recursive case: Continue traversing connecting rivers
+    SELECT
+        rb.BranchLevel + 1 AS BranchLevel,
+        r2.Name AS RiverName,
+        rb.TotalLength + r2.Length AS TotalLength,
+        Path || r2.Name AS Path,
+        rb.RootRiver
+    FROM
+        RiverBranches rb
+    JOIN
+        River r2 ON rb.RiverName = r2.River
+    WHERE
+        r2.Name != ALL(Path) -- Avoid revisiting rivers
+), 
+
+-- Get the longest path for each root river
+AllRiverBranches AS (
+    SELECT 
+        Path,
+        MAX(BranchLevel) AS LongestBranchLevel,
+        MAX(TotalLength) AS TotalLength,
+        RootRiver
+    FROM
+        RiverBranches
+    GROUP BY
+        RootRiver, Path
+),
+
+-- Select the longest branch level for each root river (RootRiver)
+LongestBranchLevels AS (
+    SELECT 
+        RootRiver,
+        MAX(LongestBranchLevel) AS LongestBranchLevel
+    FROM
+        AllRiverBranches
+    GROUP BY
+        RootRiver
+)
+
+-- Select all the longest paths for each root river
+SELECT 
+    RANK() OVER (ORDER BY lbl.LongestBranchLevel ASC) AS Rank,
+    array_to_string(arb.Path, '-') AS Path,
+    arb.LongestBranchLevel as NumRivers,
+    arb.TotalLength as TotLength
+
+FROM
+    AllRiverBranches arb
+JOIN 
+    LongestBranchLevels lbl ON arb.RootRiver = lbl.RootRiver
+WHERE
+    arb.LongestBranchLevel = lbl.LongestBranchLevel
+ORDER BY
+    lbl.LongestBranchLevel, arb.TotalLength DESC;
