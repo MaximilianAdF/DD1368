@@ -58,7 +58,7 @@ SELECT
     array_to_string(arb.Path, '-') AS Path,
     arb.LongestBranchLevel as NumRivers,
     arb.TotalLength as TotLength
-
+    
 FROM
     AllRiverBranches arb
 JOIN 
